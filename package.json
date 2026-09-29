@@ -1,0 +1,46 @@
+{
+  "name": "pgqueue-ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev:api": "tsx watch src/api/server.ts",
+    "dev:worker": "tsx watch src/worker/main.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khushi-sharma01/pgqueue-ts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/khushi-sharma01/pgqueue-ts/issues"
+  },
+  "homepage": "https://github.com/khushi-sharma01/pgqueue-ts#readme",
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.2"
+  },
+  "type": "module"
+}
