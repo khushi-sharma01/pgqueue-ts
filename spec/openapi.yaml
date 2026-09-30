@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: pgqueue-ts API
+  version: 0.1.0
+  description: |
+    HTTP API for a Postgres-backed job queue. Delivery is at-least-once, so job
+    handlers must be idempotent. Workers talk to Postgres directly and are not
+    part of this HTTP API.
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /v1/jobs:
+    post:
+      summary: Enqueue a job
+      description: |
+        Creates a job in the `queued` state. If an `Idempotency-Key` is sent and
+        a job with the same (queue, key) already exists, no new job is created
+        and the original job is returned with 200.
+      operationId: enqueueJob
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnqueueRequest'
+      responses:
+        '201':
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '200':
+          description: Duplicate Idempotency-Key, original job returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/jobs/{id}:
+    get:
+      summary: Get job status
+      operationId: getJob
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/queues/{name}/stats:
+    get:
+      summary: Queue statistics
+      operationId: getQueueStats
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Counts by state and age of the oldest queued job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStats'
+
+  /healthz:
+    get:
+      summary: Liveness check
+      operationId: healthz
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # Stretch goals, not part of the core build:
+  #   POST /v1/jobs/{id}/requeue   move a dead job back to queued
+  #   GET  /metrics                Prometheus metrics
+
+components:
+  schemas:
+    JobType:
+      type: string
+      enum: [noop, hash, flaky]
+      description: Stretch types to add later are `sleep` and `llm_call`.
+
+    JobState:
+      type: string
+      enum: [queued, active, completed, dead]
+
+    EnqueueRequest:
+      type: object
+      required: [queue, type, payload]
+      properties:
+        queue:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: bench
+        type:
+          $ref: '#/components/schemas/JobType'
+        payload:
+          type: object
+          description: |
+            Handler input. Examples: hash takes `{ "n": 100000 }`, flaky takes
+            `{ "p": 0.5 }`, noop takes `{}`.
+          additionalProperties: true
+        priority:
+          type: integer
+          default: 0
+          description: Stretch goal. Higher runs first. Ignored in the core build.
+        delay_ms:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Milliseconds before the job becomes eligible to run.
+        max_attempts:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+
+    Job:
+      type: object
+      required: [id, queue, type, state, attempts, max_attempts, run_at, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        queue:
+          type: string
+        type:
+          $ref: '#/components/schemas/JobType'
+        payload:
+          type: object
+          additionalProperties: true
+        state:
+          $ref: '#/components/schemas/JobState'
+        priority:
+          type: integer
+        attempts:
+          type: integer
+        max_attempts:
+          type: integer
+        run_at:
+          type: string
+          format: date-time
+        last_error:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    QueueStats:
+      type: object
+      required: [queue, counts, oldest_queued_age_seconds]
+      properties:
+        queue:
+          type: string
+        counts:
+          type: object
+          required: [queued, active, completed, dead]
+          properties:
+            queued: { type: integer }
+            active: { type: integer }
+            completed: { type: integer }
+            dead: { type: integer }
+        oldest_queued_age_seconds:
+          type: number
+          nullable: true
+          description: Null when nothing is queued.
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: invalid_request
+            message:
+              type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Job not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
