@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  conformance:
+    name: Conformance tests
+    runs-on: ubuntu-latest
+    # Week 1: these tests fail on purpose (no API yet).
+    # Delete this line once the conformance suite is green.
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pgqueue
+          POSTGRES_PASSWORD: pgqueue
+          POSTGRES_DB: pgqueue
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pgqueue -d pgqueue"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://pgqueue:pgqueue@localhost:5432/pgqueue
+      BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Load schema
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f spec/schema.sql
+
+      # From week 2 on, start the API and worker here, then wait for /healthz:
+      # - name: Start API and worker
+      #   run: |
+      #     npm run build
+      #     node dist/src/api/server.js &
+      #     node dist/src/worker/main.js &
+      #     npx wait-on http://localhost:3000/healthz
+
+      - run: npm run test:conformance
