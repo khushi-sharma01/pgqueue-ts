@@ -111,7 +111,7 @@ components:
   schemas:
     JobType:
       type: string
-      enum: [noop, hash, flaky]
+      enum: [noop, hash, flaky, probe]
       description: Stretch types to add later are `sleep` and `llm_call`.
 
     JobState:
