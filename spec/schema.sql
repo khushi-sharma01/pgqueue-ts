@@ -24,3 +24,12 @@ CREATE INDEX jobs_claim_idx ON jobs (queue, priority DESC, run_at)
 
 CREATE INDEX jobs_lease_idx ON jobs (locked_until)
   WHERE state = 'active';
+
+CREATE TABLE job_runs (
+  id          bigserial PRIMARY KEY,
+  job_id      uuid NOT NULL,
+  worker_id   text NOT NULL,
+  started_at  timestamptz NOT NULL DEFAULT clock_timestamp(),
+  finished_at timestamptz
+);
+CREATE INDEX job_runs_job_idx ON job_runs (job_id);

@@ -1,13 +1,17 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { enqueue, pool, uniqueQueue, waitForState } from './helpers.js';
+import { enqueue, pool, startWorker, stopAllWorkers, uniqueQueue, waitForState } from './helpers.js';
 
-afterAll(() => pool.end());
+afterAll(async () => {
+  stopAllWorkers();
+  await pool.end();
+});
 
-// Requires the API and at least one worker to be running.
 describe('flaky jobs', () => {
   it('retries with backoff and lands in dead after max_attempts', async () => {
     const queue = uniqueQueue();
     const maxAttempts = 3;
+
+    startWorker({ queue, concurrency: 1 });
 
     // p = 1 means the handler fails on every attempt.
     const startedAt = Date.now();

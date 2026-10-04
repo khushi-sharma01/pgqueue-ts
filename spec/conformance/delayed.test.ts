@@ -1,13 +1,27 @@
 import { afterAll, describe, expect, it } from 'vitest';
-import { enqueue, getJob, pool, sleep, uniqueQueue, waitForState } from './helpers.js';
+import {
+  enqueue,
+  getJob,
+  pool,
+  sleep,
+  startWorker,
+  stopAllWorkers,
+  uniqueQueue,
+  waitForState,
+} from './helpers.js';
 
-afterAll(() => pool.end());
+afterAll(async () => {
+  stopAllWorkers();
+  await pool.end();
+});
 
-// Requires the API and at least one worker to be running.
 describe('delayed jobs', () => {
   it('does not run before run_at, then runs', async () => {
     const queue = uniqueQueue();
     const delayMs = 3000;
+
+    // The worker is already running, so only run_at can hold the job back.
+    startWorker({ queue, concurrency: 1 });
 
     const { status, job } = await enqueue({
       queue,
@@ -28,7 +42,7 @@ describe('delayed jobs', () => {
     expect(early.state).toBe('queued');
     expect(early.attempts).toBe(0);
 
-    // After run_at, a worker picks it up and completes it.
+    // After run_at, the worker picks it up and completes it.
     const done = await waitForState(job.id, ['completed'], 15_000);
     expect(new Date(done.finished_at!).getTime()).toBeGreaterThanOrEqual(runAt);
   }, 30_000);

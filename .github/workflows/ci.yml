@@ -42,7 +42,7 @@ jobs:
           --health-retries 20
     env:
       DATABASE_URL: postgres://pgqueue:pgqueue@localhost:5432/pgqueue
-      BASE_URL: http://localhost:3000
+      API_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
