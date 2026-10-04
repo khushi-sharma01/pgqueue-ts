@@ -7,13 +7,14 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run src",
     "dev:api": "tsx watch src/api/server.ts",
     "dev:worker": "tsx watch src/worker/main.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:conformance": "vitest run spec/conformance"
   },
   "repository": {
     "type": "git",
